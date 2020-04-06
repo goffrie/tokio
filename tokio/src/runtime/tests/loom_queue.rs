@@ -4,6 +4,110 @@ use crate::runtime::task::{self, Schedule, Task};
 use loom::thread;
 
 #[test]
+fn basic() {
+    loom::model(|| {
+        let (steal, mut local) = queue::local();
+        let inject = queue::Inject::new();
+
+        let th = thread::spawn(move || {
+            let (_, mut local) = queue::local();
+            let mut n = 0;
+
+            for _ in 0..3 {
+                if steal.steal_into(&mut local).is_some() {
+                    n += 1;
+                }
+
+                while local.pop().is_some() {
+                    n += 1;
+                }
+            }
+
+            n
+        });
+
+        let mut n = 0;
+
+        for _ in 0..2 {
+            for _ in 0..2 {
+                let (task, _) = task::joinable::<_, Runtime>(async {});
+                local.push_back(task, &inject);
+            }
+
+            if local.pop().is_some() {
+                n += 1;
+            }
+
+            // Push another task
+            let (task, _) = task::joinable::<_, Runtime>(async {});
+            local.push_back(task, &inject);
+
+            while local.pop().is_some() {
+                n += 1;
+            }
+        }
+
+        while inject.pop().is_some() {
+            n += 1;
+        }
+
+        n += th.join().unwrap();
+
+        assert_eq!(6, n);
+    });
+}
+
+#[test]
+fn steal_overflow() {
+    loom::model(|| {
+        let (steal, mut local) = queue::local();
+        let inject = queue::Inject::new();
+
+        let th = thread::spawn(move || {
+            let (_, mut local) = queue::local();
+            let mut n = 0;
+
+            if steal.steal_into(&mut local).is_some() {
+                n += 1;
+            }
+
+            while local.pop().is_some() {
+                n += 1;
+            }
+
+            n
+        });
+
+        let mut n = 0;
+
+        // push a task, pop a task
+        let (task, _) = task::joinable::<_, Runtime>(async {});
+        local.push_back(task, &inject);
+
+        if local.pop().is_some() {
+            n += 1;
+        }
+
+        for _ in 0..6 {
+            let (task, _) = task::joinable::<_, Runtime>(async {});
+            local.push_back(task, &inject);
+        }
+
+        n += th.join().unwrap();
+
+        while local.pop().is_some() {
+            n += 1;
+        }
+
+        while inject.pop().is_some() {
+            n += 1;
+        }
+
+        assert_eq!(7, n);
+    });
+}
+
+#[test]
 fn multi_stealer() {
     const NUM_TASKS: usize = 5;
 
