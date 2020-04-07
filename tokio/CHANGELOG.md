@@ -1,3 +1,26 @@
+# 0.2.16 (April 3, 2020)
+
+### Fixes
+
+- sync: fix a regression where `Mutex`, `Semaphore`, and `RwLock` futures no
+  longer implement `Sync` (#2375)
+- fs: fix `fs::copy` not copying file permissions (#2354)
+
+### Added
+
+- time: added `deadline` method to `delay_queue::Expired` (#2300)
+- io: added `StreamReader` (#2052) 
+
+# 0.2.15 (April 2, 2020)
+
+### Fixes
+
+- rt: fix queue regression (#2362).
+
+### Added
+
+- sync: Add disarm to `mpsc::Sender` (#2358).
+
 # 0.2.14 (April 1, 2020)
 
 ### Fixes
