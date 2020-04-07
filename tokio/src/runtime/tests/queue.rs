@@ -90,10 +90,11 @@ fn stress1() {
 
 #[test]
 fn stress2() {
+    const NUM_ITER: usize = 100;
     const NUM_TASKS: usize = 10_000_000;
     const NUM_STEAL: usize = 10_000;
 
-    for i in 0..1_000 {
+    for i in 0..NUM_ITER {
         println!("{}", i);
 
         let (steal, mut local) = queue::local();

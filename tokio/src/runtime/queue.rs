@@ -349,6 +349,8 @@ impl<T> Steal<T> {
             let n = src_tail.wrapping_sub(src_head_real);
             let n = n - n / 2;
 
+            assert!(n <= 128, "actual = {}", n);
+
             if n == 0 {
                 // No tasks available to steal
                 return 0;
