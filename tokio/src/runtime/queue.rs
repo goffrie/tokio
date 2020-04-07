@@ -295,6 +295,8 @@ impl<T> Steal<T> {
 
     /// Steals half the tasks from self and place them into `dst`.
     pub(super) fn steal_into(&self, dst: &mut Local<T>) -> Option<task::Notified<T>> {
+        assert!(dst.inner.is_empty());
+
         // Safety: the caller is the only thread that mutates `dst.tail` and
         // holds a mutable reference.
         let dst_tail = unsafe { dst.inner.tail.unsync_load() };

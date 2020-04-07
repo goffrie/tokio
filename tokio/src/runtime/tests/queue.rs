@@ -119,12 +119,22 @@ fn stress2() {
             n
         });
 
-        for _ in 0..NUM_TASKS {
+        let mut num_pop = 0;
+
+        for i in 0..NUM_TASKS {
             let (task, _) = task::joinable::<_, Runtime>(async {});
             local.push_back(task, &inject);
+
+            if i % 128 == 0 && local.pop().is_some() {
+                num_pop += 1;
+            }
+
+            while inject.pop().is_some() {
+                num_pop += 1;
+            }
         }
 
-        let mut num_pop = th.join().unwrap();
+        num_pop += th.join().unwrap();
 
         while local.pop().is_some() {
             num_pop += 1;
