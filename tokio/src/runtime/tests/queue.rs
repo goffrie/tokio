@@ -1,6 +1,8 @@
 use crate::runtime::queue;
 use crate::runtime::task::{self, Schedule, Task};
 
+use std::thread;
+
 #[test]
 fn steal_batch() {
     let (steal1, mut local1) = queue::local();
@@ -25,6 +27,64 @@ fn steal_batch() {
     }
 
     assert!(local1.pop().is_none());
+}
+
+#[test]
+fn stress() {
+    const NUM_ITER: usize = 5;
+    const NUM_STEAL: usize = 1_000;
+    const NUM_LOCAL: usize = 1_000;
+    const NUM_PUSH: usize = 500;
+    const NUM_POP: usize = 250;
+
+    for _ in 0..NUM_ITER {
+        let (steal, mut local) = queue::local();
+        let inject = queue::Inject::new();
+
+        let th = thread::spawn(move || {
+            let (_, mut local) = queue::local();
+            let mut n = 0;
+
+            for _ in 0..NUM_STEAL {
+                if steal.steal_into(&mut local).is_some() {
+                    n += 1;
+                }
+
+                while local.pop().is_some() {
+                    n += 1;
+                }
+
+                thread::yield_now();
+            }
+
+            n
+        });
+
+        let mut n = 0;
+
+        for _ in 0..NUM_LOCAL {
+            for _ in 0..NUM_PUSH {
+                let (task, _) = task::joinable::<_, Runtime>(async {});
+                local.push_back(task, &inject);
+            }
+
+            for _ in 0..NUM_POP {
+                if local.pop().is_some() {
+                    n += 1;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        while inject.pop().is_some() {
+            n += 1;
+        }
+
+        n += th.join().unwrap();
+
+        assert_eq!(n, NUM_LOCAL * NUM_PUSH);
+    }
 }
 
 struct Runtime;
