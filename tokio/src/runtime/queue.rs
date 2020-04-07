@@ -259,9 +259,12 @@ impl<T> Local<T> {
                 return None;
             }
 
+            assert_ne!(steal, tail, "steal = {}; real = {}; tail = {}", steal, real, tail);
+
             let next_real = real.wrapping_add(1);
 
-            // Only update `steal` component if it differs from `real`.
+            // If `steal == real` there are no concurrent stealers. Both `steal`
+            // and `real` are updated.
             let next = if steal == real {
                 pack(next_real, next_real)
             } else {
