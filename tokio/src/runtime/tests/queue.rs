@@ -2,6 +2,7 @@ use crate::runtime::queue;
 use crate::runtime::task::{self, Schedule, Task};
 
 use std::thread;
+use std::time::Duration;
 
 #[test]
 fn steal_batch() {
@@ -30,7 +31,7 @@ fn steal_batch() {
 }
 
 #[test]
-fn stress() {
+fn stress1() {
     const NUM_ITER: usize = 5;
     const NUM_STEAL: usize = 1_000;
     const NUM_LOCAL: usize = 1_000;
@@ -84,6 +85,55 @@ fn stress() {
         n += th.join().unwrap();
 
         assert_eq!(n, NUM_LOCAL * NUM_PUSH);
+    }
+}
+
+#[test]
+fn stress2() {
+    const NUM_TASKS: usize = 10_000_000;
+    const NUM_STEAL: usize = 10_000;
+
+    for i in 0..1_000 {
+        println!("{}", i);
+
+        let (steal, mut local) = queue::local();
+        let inject = queue::Inject::new();
+
+        let th = thread::spawn(move || {
+            let (_, mut local) = queue::local();
+            let mut n = 0;
+
+            for _ in 0..NUM_STEAL {
+                if steal.steal_into(&mut local).is_some() {
+                    n += 1;
+                }
+
+                while local.pop().is_some() {
+                    n += 1;
+                }
+
+                thread::sleep(Duration::from_micros(10));
+            }
+
+            n
+        });
+
+        for _ in 0..NUM_TASKS {
+            let (task, _) = task::joinable::<_, Runtime>(async {});
+            local.push_back(task, &inject);
+        }
+
+        let mut num_pop = th.join().unwrap();
+
+        while local.pop().is_some() {
+            num_pop += 1;
+        }
+
+        while inject.pop().is_some() {
+            num_pop += 1;
+        }
+
+        assert_eq!(num_pop, NUM_TASKS);
     }
 }
 

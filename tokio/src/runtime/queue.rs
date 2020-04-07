@@ -265,6 +265,7 @@ impl<T> Local<T> {
             let next = if steal == real {
                 pack(next_real, next_real)
             } else {
+                assert_ne!(steal, next_real);
                 pack(steal, next_real)
             };
 
@@ -352,6 +353,7 @@ impl<T> Steal<T> {
 
             // Update the real head index to acquire the tasks.
             let steal_to = src_head_real.wrapping_add(n);
+            assert_ne!(src_head_steal, steal_to);
             next_packed = pack(src_head_steal, steal_to);
 
             // Claim all those tasks. This is done by incrementing the "real"
